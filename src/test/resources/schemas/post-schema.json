@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Post Response Schema",
+  "description": "Schema for validating post responses from JSONPlaceholder API",
+  "type": "object",
+  "required": ["userId", "id", "title", "body"],
+  "properties": {
+    "userId": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "ID of the user who created the post"
+    },
+    "id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Unique post identifier"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Post title"
+    },
+    "body": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "description": "Post content body"
+    }
+  },
+  "additionalProperties": false
+} 

@@ -1,0 +1,260 @@
+# =============================================================================
+# Java Maven Test Automation Framework .gitignore
+# =============================================================================
+
+# =============================================================================
+# Maven Build Files
+# =============================================================================
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# =============================================================================
+# Java Compiled Files
+# =============================================================================
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+
+# =============================================================================
+# IDE Files
+# =============================================================================
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Eclipse
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.loadpath
+.recommenders
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# =============================================================================
+# Test Automation Specific
+# =============================================================================
+# Playwright
+playwright-report/
+test-results/
+*.png
+*.webm
+*.mp4
+
+# Allure Reports
+allure-report/
+allure-results/
+.allure/
+
+# TestNG
+test-output/
+testng-results.xml
+
+# Surefire Reports
+surefire-reports/
+
+# Screenshots and Videos (automation artifacts)
+screenshots/
+videos/
+downloads/
+traces/
+
+# Browser cache and temp files
+.cache/
+*.log
+
+# =============================================================================
+# Database Files
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+*.h2.db
+
+# =============================================================================
+# Log Files
+# =============================================================================
+*.log
+logs/
+log/
+*.log.*
+*.out
+
+# =============================================================================
+# Operating System Files
+# =============================================================================
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# Security and Credentials
+# =============================================================================
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Configuration files with sensitive data
+config/secrets.properties
+config/local.properties
+config/dev.properties
+config/prod.properties
+src/test/resources/config/secrets.properties
+
+# API Keys and tokens
+**/apikeys.properties
+**/credentials.properties
+**/secrets.json
+**/auth.json
+
+# =============================================================================
+# Docker
+# =============================================================================
+docker-compose.override.yml
+.dockerignore
+
+# =============================================================================
+# Jenkins/CI Files
+# =============================================================================
+.jenkins/
+pipeline.log
+jenkins.log
+
+# =============================================================================
+# JMeter
+# =============================================================================
+*.jtl
+jmeter.log
+jmeter-server.log
+
+# =============================================================================
+# Node.js (if using any JS tools)
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# =============================================================================
+# Temporary Files
+# =============================================================================
+*.tmp
+*.temp
+*~
+.#*
+\#*#
+
+# =============================================================================
+# Backup Files
+# =============================================================================
+*.bak
+*.backup
+*.old
+*.orig
+
+# =============================================================================
+# Archive Files
+# =============================================================================
+*.7z
+*.dmg
+*.gz
+*.iso
+*.rar
+*.tar
+*.zip
+
+# =============================================================================
+# JVM Crash Logs
+# =============================================================================
+hs_err_pid*
+
+# =============================================================================
+# JIRA/Confluence (if integrated)
+# =============================================================================
+atlassian-ide-plugin.xml
+
+# =============================================================================
+# Custom Project Files (add your specific ignores here)
+# =============================================================================
+# Test data files (if they contain sensitive data)
+# test-data/sensitive/
+# Custom reports directory
+# custom-reports/ 

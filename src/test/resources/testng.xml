@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="Enterprise Test Automation Suite" verbose="1">
+    
+    <!-- Sample Test Suite for Report Generation -->
+    <test name="Sample Tests" preserve-order="true">
+        <classes>
+            <class name="com.automation.tests.SampleTest"/>
+        </classes>
+    </test>
+    
+    <!-- JSON Schema Validation Test Suite -->
+    <test name="JSON Schema Validation Tests" preserve-order="true">
+        <classes>
+            <class name="com.automation.tests.JsonSchemaValidationTest"/>
+        </classes>
+    </test>
+    
+</suite> 
