@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    
+    <!-- Console appender for test output -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- File appender for detailed logs -->
+    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>target/test-execution.log</file>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Set logging levels for our packages -->
+    <logger name="com.automation.config.PlaywrightConfig" level="WARN"/>
+    <logger name="com.automation.base.BaseTest" level="INFO"/>
+    <logger name="com.automation.tests" level="INFO"/>
+    
+    <!-- Reduce Playwright internal logging -->
+    <logger name="com.microsoft.playwright" level="WARN"/>
+    
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+    
+</configuration> 
