@@ -165,9 +165,18 @@
             <artifactId>commons-configuration2</artifactId>
             <version>2.9.0</version>
         </dependency>
+        
+        <!-- Dotenv for environment variables -->
+        <dependency>
+            <groupId>io.github.cdimascio</groupId>
+            <artifactId>dotenv-java</artifactId>
+            <version>3.0.0</version>
+        </dependency>
     </dependencies>
     
     <build>
+        <sourceDirectory>src/main</sourceDirectory>
+        <testSourceDirectory>src/test</testSourceDirectory>
         <plugins>
             <!-- Maven Compiler Plugin -->
             <plugin>
