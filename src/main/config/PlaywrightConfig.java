@@ -117,15 +117,8 @@ public class PlaywrightConfig {
         try {
             if (context != null) {
                 context.close();
+                context = null;
                 logger.info("Browser context closed");
-            }
-            if (browser != null) {
-                browser.close();
-                logger.info("Browser closed");
-            }
-            if (playwright != null) {
-                playwright.close();
-                logger.info("Playwright closed");
             }
         } catch (Exception e) {
             logger.error("Error during cleanup", e);

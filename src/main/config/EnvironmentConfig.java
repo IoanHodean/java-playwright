@@ -10,8 +10,15 @@ public class EnvironmentConfig {
     private final Dotenv dotenv;
     
     private EnvironmentConfig() {
-        dotenv = Dotenv.load();
+        dotenv = Dotenv.configure()
+            .ignoreIfMissing()
+            .load();
         logger.info("Environment configuration loaded");
+        
+        // Debug: Print loaded values
+        logger.info("BASE_URL: {}", dotenv.get("BASE_URL"));
+        logger.info("APP_USERNAME: {}", dotenv.get("APP_USERNAME"));
+        logger.info("APP_PASSWORD: {}", dotenv.get("APP_PASSWORD") != null ? "***" : "null");
     }
     
     public static synchronized EnvironmentConfig getInstance() {
@@ -26,10 +33,10 @@ public class EnvironmentConfig {
     }
     
     public String getUsername() {
-        return dotenv.get("USERNAME");
+        return dotenv.get("APP_USERNAME");
     }
     
     public String getPassword() {
-        return dotenv.get("PASSWORD");
+        return dotenv.get("APP_PASSWORD");
     }
 }
