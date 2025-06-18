@@ -189,6 +189,18 @@ src/test/resources/config/secrets.properties
 docker-compose.override.yml
 .dockerignore
 
+# Docker volumes and data
+jenkins-data/
+docker-certs-ca/
+docker-certs-client/
+
+# Docker build context exclusions that might leak
+.git/
+.gitignore
+README*.md
+docs/
+*.md
+
 # =============================================================================
 # Jenkins/CI Files
 # =============================================================================

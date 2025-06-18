@@ -1,0 +1,56 @@
+jenkins:
+  systemMessage: "Test Automation Jenkins - Docker-in-Docker Setup"
+  
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: ${JENKINS_ADMIN_PASSWORD:-admin123}
+          
+  authorizationStrategy:
+    globalMatrix:
+      permissions:
+        - "Overall/Administer:admin"
+        - "Overall/Read:authenticated"
+        
+  remotingSecurity:
+    enabled: true
+
+  nodes:
+    - permanent:
+        name: "docker-agent"
+        remoteFS: "/home/jenkins/workspace"
+        launcher:
+          inbound:
+            webSocket: true
+
+security:
+  queueItemAuthenticator:
+    authenticators:
+      - global:
+          strategy: triggeringUsersAuthorizationStrategy
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "docker-registry"
+              username: ${DOCKER_REGISTRY_USER:-admin}
+              password: ${DOCKER_REGISTRY_PASS:-admin}
+              description: "Docker Registry Credentials"
+
+unclassified:
+  location:
+    url: http://localhost:8080/
+    adminAddress: admin@test-automation.local
+    
+  allure:
+    installations:
+      - name: "allure"
+        home: "/opt/allure"
+        
+  email-ext:
+    defaultSuffix: "@test-automation.local" 

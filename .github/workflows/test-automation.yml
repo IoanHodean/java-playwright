@@ -1,0 +1,250 @@
+name: Test Automation Pipeline
+
+on:
+  push:
+    branches: [ main, develop, release/* ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run nightly regression tests at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - local
+      test_suite:
+        description: 'Test Suite to Run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - api
+          - performance
+          - ui
+          - smoke
+      parallel_execution:
+        description: 'Enable Parallel Execution'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  MAVEN_OPTS: -Xmx2048m -Djava.awt.headless=true
+  JAVA_VERSION: '17'
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      test-environment: ${{ steps.set-env.outputs.environment }}
+      test-suite: ${{ steps.set-suite.outputs.suite }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set Environment
+        id: set-env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          else
+            echo "environment=dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set Test Suite
+        id: set-suite
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "suite=${{ github.event.inputs.test_suite }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "suite=all" >> $GITHUB_OUTPUT
+          else
+            echo "suite=smoke" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set Test Matrix
+        id: set-matrix
+        run: |
+          if [ "${{ steps.set-suite.outputs.suite }}" = "all" ]; then
+            echo 'matrix=["api", "performance", "ui"]' >> $GITHUB_OUTPUT
+          elif [ "${{ steps.set-suite.outputs.suite }}" = "smoke" ]; then
+            echo 'matrix=["api"]' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix=["${{ steps.set-suite.outputs.suite }}"]' >> $GITHUB_OUTPUT
+          fi
+
+  test:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test-type: ${{ fromJson(needs.setup.outputs.matrix) }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Cache Maven Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Validate Environment Configuration
+        run: |
+          echo "Testing Environment: ${{ needs.setup.outputs.test-environment }}"
+          echo "Test Suite: ${{ matrix.test-type }}"
+          echo "Parallel Execution: ${{ github.event.inputs.parallel_execution || 'true' }}"
+          
+          # Validate environment files exist
+          if [ ! -f "src/main/resources/config/environments/${{ needs.setup.outputs.test-environment }}.properties" ]; then
+            echo "ERROR: Environment configuration not found for ${{ needs.setup.outputs.test-environment }}"
+            exit 1
+          fi
+
+      - name: Run API Tests
+        if: matrix.test-type == 'api'
+        run: |
+          mvn test -Dtest.environment=${{ needs.setup.outputs.test-environment }} \
+                   -Dtest="**/*ApiTest" \
+                   -Dgroups="api,smoke" \
+                   -Dparallel=${{ github.event.inputs.parallel_execution || 'true' }} \
+                   -Dmaven.test.failure.ignore=false
+
+      - name: Run Performance Tests
+        if: matrix.test-type == 'performance'
+        run: |
+          # Only run performance tests in non-production environments
+          if [ "${{ needs.setup.outputs.test-environment }}" != "prod" ]; then
+            mvn test -Dtest.environment=${{ needs.setup.outputs.test-environment }} \
+                     -Dtest="**/*PerformanceTest" \
+                     -Dgroups="performance,load" \
+                     -Dmaven.test.failure.ignore=false
+          else
+            echo "Skipping performance tests in production environment"
+          fi
+
+      - name: Run UI Tests
+        if: matrix.test-type == 'ui'
+        run: |
+          mvn test -Dtest.environment=${{ needs.setup.outputs.test-environment }} \
+                   -Dtest="**/*UITest,**/*LoginTest" \
+                   -Dgroups="ui,e2e" \
+                   -Dheadless=true \
+                   -Dparallel=${{ github.event.inputs.parallel_execution || 'true' }} \
+                   -Dmaven.test.failure.ignore=false
+
+      - name: Generate Allure Report
+        if: always()
+        run: |
+          mvn allure:report
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.test-type }}-${{ needs.setup.outputs.test-environment }}
+          path: |
+            target/surefire-reports/
+            target/allure-results/
+            target/allure-reports/
+            target/*.jtl
+          retention-days: 7
+
+      - name: Upload Test Logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-logs-${{ matrix.test-type }}-${{ needs.setup.outputs.test-environment }}
+          path: |
+            target/logs/
+            *.log
+          retention-days: 3
+
+  report:
+    needs: [setup, test]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Download All Test Results
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Combine Allure Results
+        run: |
+          mkdir -p combined-allure-results
+          find artifacts -name "allure-results" -type d -exec cp -r {}/* combined-allure-results/ \;
+
+      - name: Generate Combined Allure Report
+        uses: simple-elf/allure-report-action@master
+        if: always()
+        with:
+          allure_results: combined-allure-results
+          allure_report: combined-allure-report
+          gh_pages: gh-pages
+          allure_history: allure-history
+
+      - name: Deploy Report to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: combined-allure-report
+
+      - name: Test Results Summary
+        if: always()
+        run: |
+          echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ needs.setup.outputs.test-environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Suite:** ${{ needs.setup.outputs.test-suite }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Parallel Execution:** ${{ github.event.inputs.parallel_execution || 'true' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Count test results
+          TOTAL_TESTS=$(find artifacts -name "*.xml" -type f -exec grep -l "testcase" {} \; | wc -l)
+          FAILED_TESTS=$(find artifacts -name "*.xml" -type f -exec grep -l 'failure\|error' {} \; | wc -l)
+          
+          echo "**Total Test Files:** $TOTAL_TESTS" >> $GITHUB_STEP_SUMMARY
+          echo "**Failed Test Files:** $FAILED_TESTS" >> $GITHUB_STEP_SUMMARY
+          
+          if [ $FAILED_TESTS -gt 0 ]; then
+            echo "❌ **Test Execution:** FAILED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **Test Execution:** PASSED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  notification:
+    needs: [setup, test, report]
+    runs-on: ubuntu-latest
+    if: always() && (github.event_name == 'schedule' || github.ref == 'refs/heads/main')
+    
+    steps:
+      - name: Notify on Failure
+        if: needs.test.result == 'failure'
+        run: |
+          echo "Test execution failed for environment: ${{ needs.setup.outputs.test-environment }}"
+          # Add Slack/Teams/Email notification here if needed 

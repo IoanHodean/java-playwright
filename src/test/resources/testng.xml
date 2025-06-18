@@ -1,13 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
-<suite name="Enterprise Test Automation Framework" parallel="false" verbose="1">
+<suite name="Enterprise Test Automation Framework" 
+       parallel="tests" thread-count="3" 
+       data-provider-thread-count="2"
+       verbose="2">
     
-    <!-- UI Test Suite -->
-    <test name="UI Tests" group-by-instances="true">
+    <!-- Global Parameters -->
+    <parameter name="environment" value="${test.environment}"/>
+    <parameter name="browser" value="${test.browser}"/>
+    <parameter name="headless" value="${test.headless}"/>
+    
+    <!-- UI Test Suite - Parallel Methods -->
+    <test name="UI Tests" group-by-instances="true" 
+          parallel="methods" thread-count="2" preserve-order="false">
         <groups>
             <run>
                 <include name="ui"/>
                 <include name="smoke"/>
+                <include name="e2e"/>
             </run>
         </groups>
         <classes>
@@ -15,16 +25,36 @@
         </classes>
     </test>
     
-    <!-- API Test Suite -->
-    <test name="API Tests" group-by-instances="true">
+    <!-- API Test Suite - Parallel Classes -->
+    <test name="API Tests" group-by-instances="true" 
+          parallel="classes" thread-count="2" preserve-order="false">
         <groups>
             <run>
                 <include name="api"/>
                 <include name="smoke"/>
+                <include name="regression"/>
+                <include name="integration"/>
             </run>
         </groups>
         <classes>
             <class name="com.automation.api.tests.UserApiTest"/>
+        </classes>
+    </test>
+    
+    <!-- Performance Test Suite - Sequential (Resource Intensive) -->
+    <test name="Performance Tests" group-by-instances="true" 
+          parallel="false" preserve-order="true">
+        <groups>
+            <run>
+                <include name="performance"/>
+                <include name="load"/>
+                <include name="stress"/>
+                <include name="endurance"/>
+            </run>
+        </groups>
+        <classes>
+            <class name="com.automation.performance.PerformanceTest"/>
+            <class name="com.automation.performance.JMeterDemoTest"/>
         </classes>
     </test>
     

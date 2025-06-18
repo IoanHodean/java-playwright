@@ -1,0 +1,42 @@
+# Jenkins with Docker-in-Docker for Test Automation
+FROM jenkins/jenkins:lts-jdk17
+
+# Switch to root for installations
+USER root
+
+# Install Docker CLI and Docker Compose
+RUN apt-get update && apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker Compose
+RUN curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose \
+    && chmod +x /usr/local/bin/docker-compose
+
+# Add jenkins user to docker group
+RUN usermod -aG docker jenkins
+
+# Install common plugins
+COPY jenkins/plugins.txt /usr/share/jenkins/ref/plugins.txt
+RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
+
+# Copy Jenkins configuration
+COPY jenkins/jenkins.yaml /var/jenkins_home/casc_configs/jenkins.yaml
+
+# Set environment variables
+ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false -Dcasc.jenkins.config=/var/jenkins_home/casc_configs/jenkins.yaml"
+ENV DOCKER_HOST=unix:///var/run/docker.sock
+
+# Switch back to jenkins user
+USER jenkins
+
+# Expose ports
+EXPOSE 8080 50000 

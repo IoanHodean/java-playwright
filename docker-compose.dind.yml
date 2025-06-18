@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Docker-in-Docker daemon
+  docker-dind:
+    image: docker:24-dind
+    container_name: docker-dind
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    volumes:
+      - docker-certs-ca:/certs/ca
+      - docker-certs-client:/certs/client
+      - jenkins-data:/var/jenkins_home
+    networks:
+      - jenkins-network
+    command: --storage-driver=overlay2
+
+  # Jenkins master with Docker-in-Docker capability
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins
+    container_name: jenkins-master
+    depends_on:
+      - docker-dind
+    environment:
+      DOCKER_HOST: tcp://docker-dind:2376
+      DOCKER_CERT_PATH: /certs/client
+      DOCKER_TLS_VERIFY: ""
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:-admin123}
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - docker-certs-client:/certs/client:ro
+      - .:/workspace
+    networks:
+      - jenkins-network
+    restart: unless-stopped
+
+  # Test automation container (for local testing)
+  test-automation:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: test-automation-local
+    volumes:
+      - .:/app
+      - ./target:/app/target
+      - ./allure-results:/app/allure-results
+      - ./logs:/app/logs
+      - ./screenshots:/app/screenshots
+      - ./test-results:/app/test-results
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      BROWSER: ${BROWSER:-chromium}
+      HEADLESS: ${HEADLESS:-true}
+      TEST_SUITE: ${TEST_SUITE:-all}
+      MAVEN_OPTS: "-Xmx2048m -Djava.awt.headless=true"
+    networks:
+      - jenkins-network
+    profiles:
+      - local-testing
+    command: tail -f /dev/null  # Keep container running for interactive use
+
+networks:
+  jenkins-network:
+    driver: bridge
+
+volumes:
+  jenkins-data:
+    name: jenkins-home-data
+  docker-certs-ca:
+    name: docker-certs-ca
+  docker-certs-client:
+    name: docker-certs-client 
