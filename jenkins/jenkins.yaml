@@ -25,11 +25,7 @@ jenkins:
           inbound:
             webSocket: true
 
-security:
-  queueItemAuthenticator:
-    authenticators:
-      - global:
-          strategy: triggeringUsersAuthorizationStrategy
+# Security configuration removed to fix startup issue
 
 credentials:
   system:

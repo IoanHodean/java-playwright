@@ -21,8 +21,8 @@ RUN apt-get update && apt-get install -y \
 RUN curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose \
     && chmod +x /usr/local/bin/docker-compose
 
-# Add jenkins user to docker group
-RUN usermod -aG docker jenkins
+# Create docker group and add jenkins user
+RUN groupadd -f docker && usermod -aG docker jenkins
 
 # Install common plugins
 COPY jenkins/plugins.txt /usr/share/jenkins/ref/plugins.txt

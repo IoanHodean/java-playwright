@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # Simple Jenkins setup
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins-simple
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins-simple-data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/workspace
+    environment:
+      - JENKINS_ADMIN_PASSWORD=admin123
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    user: root
+    restart: unless-stopped
+
+  # Test automation container
+  test-automation:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: test-automation
+    volumes:
+      - .:/app
+      - ./target:/app/target
+      - ./allure-results:/app/allure-results
+      - ./logs:/app/logs
+      - ./screenshots:/app/screenshots
+    environment:
+      - ENVIRONMENT=local
+      - BROWSER=chromium
+      - HEADLESS=true
+      - MAVEN_OPTS=-Xmx2048m -Djava.awt.headless=true
+    working_dir: /app
+    shm_size: 2g
+    command: tail -f /dev/null
+    profiles:
+      - testing
+
+volumes:
+  jenkins-simple-data:
+    name: jenkins-simple-home 

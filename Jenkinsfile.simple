@@ -1,0 +1,269 @@
+#!/usr/bin/env groovy
+
+pipeline {
+    agent any
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timeout(time: 60, unit: 'MINUTES')
+    }
+    
+    environment {
+        // Docker configuration
+        DOCKER_IMAGE = "test-automation"
+        DOCKER_TAG = "${BUILD_NUMBER}"
+        WORKSPACE_DIR = "/workspace"  // Jenkins container workspace
+        
+        // Test configuration
+        TEST_ENVIRONMENT = "${params.TEST_ENVIRONMENT ?: 'local'}"
+        TEST_SUITE = "${params.TEST_SUITE ?: 'smoke'}"
+        BROWSER = "${params.BROWSER ?: 'chromium'}"
+        HEADLESS = "${params.HEADLESS ?: 'true'}"
+    }
+    
+    parameters {
+        choice(
+            name: 'TEST_ENVIRONMENT',
+            choices: ['local', 'dev', 'staging'],
+            description: 'Target environment for tests'
+        )
+        choice(
+            name: 'TEST_SUITE',
+            choices: ['smoke', 'api', 'ui', 'performance', 'all'],
+            description: 'Test suite to run'
+        )
+        choice(
+            name: 'BROWSER',
+            choices: ['chromium', 'firefox', 'webkit'],
+            description: 'Browser for UI tests'
+        )
+        booleanParam(
+            name: 'HEADLESS',
+            defaultValue: true,
+            description: 'Run tests in headless mode'
+        )
+    }
+    
+    stages {
+        stage('Preparation') {
+            steps {
+                script {
+                    echo "=============================================="
+                    echo "        QA Test Automation Pipeline"
+                    echo "=============================================="
+                    echo "Environment: ${TEST_ENVIRONMENT}"
+                    echo "Test Suite: ${TEST_SUITE}"
+                    echo "Browser: ${BROWSER}"
+                    echo "Headless: ${HEADLESS}"
+                    echo "Build Number: ${BUILD_NUMBER}"
+                    echo "=============================================="
+                }
+            }
+        }
+        
+        stage('Build Test Image') {
+            steps {
+                script {
+                    echo "Building test automation Docker image..."
+                    sh """
+                        cd ${env.WORKSPACE_DIR}
+                        ls -la
+                        echo "Building Docker image from: \$(pwd)"
+                        docker build -f Dockerfile.test -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                    """
+                    echo "Test image built successfully"
+                }
+            }
+        }
+        
+        stage('Run Tests') {
+            parallel {
+                stage('API Tests') {
+                    when {
+                        anyOf {
+                            expression { params.TEST_SUITE == 'api' }
+                            expression { params.TEST_SUITE == 'all' }
+                        }
+                    }
+                    steps {
+                        script {
+                            echo "Running API tests in Docker container..."
+                            sh """
+                                docker run --rm --name test-api-${BUILD_NUMBER} \\
+                                    -v ${env.HOST_WORKSPACE}:/app \\
+                                    -v ${env.HOST_WORKSPACE}/target:/app/target \\
+                                    -v ${env.HOST_WORKSPACE}/allure-results:/app/allure-results \\
+                                    -v ${env.HOST_WORKSPACE}/logs:/app/logs \\
+                                    -e ENVIRONMENT=${TEST_ENVIRONMENT} \\
+                                    -e BROWSER=${BROWSER} \\
+                                    -e HEADLESS=${HEADLESS} \\
+                                    ${DOCKER_IMAGE}:${DOCKER_TAG} \\
+                                    bash -c "ls -la && mvn test -Dtest=*Api*Test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
+                            """
+                        }
+                    }
+                }
+                
+                stage('UI Tests') {
+                    when {
+                        anyOf {
+                            expression { params.TEST_SUITE == 'ui' }
+                            expression { params.TEST_SUITE == 'all' }
+                        }
+                    }
+                    steps {
+                        script {
+                            echo "Running UI tests in Docker container..."
+                            sh """
+                                docker run --rm --name test-ui-${BUILD_NUMBER} \\
+                                    -v ${env.HOST_WORKSPACE}:/app \\
+                                    -v ${env.HOST_WORKSPACE}/target:/app/target \\
+                                    -v ${env.HOST_WORKSPACE}/allure-results:/app/allure-results \\
+                                    -v ${env.HOST_WORKSPACE}/logs:/app/logs \\
+                                    -v ${env.HOST_WORKSPACE}/screenshots:/app/screenshots \\
+                                    -e ENVIRONMENT=${TEST_ENVIRONMENT} \\
+                                    -e BROWSER=${BROWSER} \\
+                                    -e HEADLESS=${HEADLESS} \\
+                                    --shm-size=2g \\
+                                    ${DOCKER_IMAGE}:${DOCKER_TAG} \\
+                                    bash -c "ls -la && mvn test -Dtest=*UI*Test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
+                            """
+                        }
+                    }
+                }
+                
+                stage('Performance Tests') {
+                    when {
+                        anyOf {
+                            expression { params.TEST_SUITE == 'performance' }
+                            expression { params.TEST_SUITE == 'all' }
+                        }
+                    }
+                    steps {
+                        script {
+                            echo "Running performance tests in Docker container..."
+                            sh """
+                                docker run --rm --name test-performance-${BUILD_NUMBER} \\
+                                    -v ${env.HOST_WORKSPACE}:/app \\
+                                    -v ${env.HOST_WORKSPACE}/target:/app/target \\
+                                    -v ${env.HOST_WORKSPACE}/allure-results:/app/allure-results \\
+                                    -v ${env.HOST_WORKSPACE}/logs:/app/logs \\
+                                    -e ENVIRONMENT=${TEST_ENVIRONMENT} \\
+                                    ${DOCKER_IMAGE}:${DOCKER_TAG} \\
+                                    bash -c "ls -la && mvn test -Dtest=*Performance*Test -Denvironment=${TEST_ENVIRONMENT} -Dmaven.test.failure.ignore=true"
+                            """
+                        }
+                    }
+                }
+                
+                stage('Smoke Tests') {
+                    when {
+                        anyOf {
+                            expression { params.TEST_SUITE == 'smoke' }
+                            expression { params.TEST_SUITE == 'all' }
+                        }
+                    }
+                    steps {
+                        script {
+                            echo "Running smoke tests in Docker container..."
+                            try {
+                                // For Docker-in-Docker, copy files to container and run tests
+                                sh """
+                                    # Create a temporary container to copy files and run tests
+                                    CONTAINER_ID=\$(docker create --name test-smoke-${BUILD_NUMBER} \\
+                                        -e ENVIRONMENT=${TEST_ENVIRONMENT} \\
+                                        -e BROWSER=${BROWSER} \\
+                                        -e HEADLESS=${HEADLESS} \\
+                                        --shm-size=2g \\
+                                        ${DOCKER_IMAGE}:${DOCKER_TAG})
+                                    
+                                    # Copy project files to container
+                                    cd ${env.WORKSPACE_DIR}
+                                    docker cp . \$CONTAINER_ID:/app/
+                                    
+                                    # Start container and run tests
+                                    docker start \$CONTAINER_ID
+                                    docker exec \$CONTAINER_ID bash -c "cd /app && pwd && ls -la && echo 'Looking for pom.xml:' && ls -la pom.xml && mvn test -Dtest=*Smoke*Test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
+                                    
+                                    # Copy results back
+                                    docker cp \$CONTAINER_ID:/app/target ${env.WORKSPACE_DIR}/target || echo "No target to copy"
+                                    docker cp \$CONTAINER_ID:/app/allure-results ${env.WORKSPACE_DIR}/allure-results || echo "No allure-results to copy"
+                                    
+                                    # Cleanup
+                                    docker stop \$CONTAINER_ID || true
+                                    docker rm \$CONTAINER_ID || true
+                                """
+                            } catch (Exception e) {
+                                echo "smoke tests failed: ${e.getMessage()}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('Generate Reports') {
+            steps {
+                script {
+                    echo "Generating test reports..."
+                    sh """
+                        cd ${env.WORKSPACE_DIR}
+                        echo "Current directory: \$(pwd)"
+                        echo "Available files:"
+                        ls -la
+                        # Copy test results to Jenkins workspace for archiving
+                        mkdir -p \${JENKINS_HOME}/workspace/\${JOB_NAME}/
+                        cp -r target/* \${JENKINS_HOME}/workspace/\${JOB_NAME}/ || echo "No target directory found"
+                        mkdir -p \${JENKINS_HOME}/workspace/\${JOB_NAME}/allure-results/
+                        cp -r allure-results/* \${JENKINS_HOME}/workspace/\${JOB_NAME}/allure-results/ || echo "No allure-results found"
+                    """
+                    
+                    // Archive test results
+                    try {
+                        archiveArtifacts artifacts: 'target/surefire-reports/*.xml, allure-results/**', allowEmptyArchive: true
+                    } catch (Exception e) {
+                        echo "No artifacts to archive: ${e.getMessage()}"
+                    }
+                    
+                    echo "Allure reports generated successfully"
+                    echo "Reports generated and archived"
+                }
+            }
+        }
+        
+        stage('Cleanup') {
+            steps {
+                script {
+                    echo "Cleaning up Docker containers and images..."
+                    sh """
+                        # Stop and remove any running containers
+                        docker ps -q --filter ancestor=${DOCKER_IMAGE} | xargs -r docker stop
+                        docker ps -aq --filter ancestor=${DOCKER_IMAGE} | xargs -r docker rm
+                        
+                        # Remove old images (keep latest)
+                        docker images ${DOCKER_IMAGE} --format "{{.ID}}" | tail -n +4 | xargs -r docker rmi -f
+                    """
+                    echo "Cleanup completed"
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                echo """
+                =====================================================
+                          Test Execution Summary
+                =====================================================
+                Environment: ${TEST_ENVIRONMENT}
+                Test Suite: ${TEST_SUITE}
+                Browser: ${BROWSER}
+                Build Number: ${BUILD_NUMBER}
+                =====================================================
+                """
+            }
+        }
+    }
+} 

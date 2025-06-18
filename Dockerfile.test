@@ -1,18 +1,20 @@
 # Simple Playwright Test Container
 FROM mcr.microsoft.com/playwright/java:v1.47.0-noble
 
-WORKDIR /app
-
 # Install Maven
 RUN apt-get update && \
     apt-get install -y maven && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy project files
+# Set working directory
+WORKDIR /app
+
+# Copy project files for dependency resolution
 COPY pom.xml ./
 RUN mvn dependency:go-offline -B
 
+# Copy source code
 COPY src ./src
 
 # Set environment variables
