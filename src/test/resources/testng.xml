@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="Enterprise Test Automation Framework" parallel="false" verbose="1">
+    
+    <!-- UI Test Suite -->
+    <test name="UI Tests" group-by-instances="true">
+        <groups>
+            <run>
+                <include name="ui"/>
+                <include name="smoke"/>
+            </run>
+        </groups>
+        <classes>
+            <class name="com.automation.UI.LoginTest"/>
+        </classes>
+    </test>
+    
+    <!-- API Test Suite -->
+    <test name="API Tests" group-by-instances="true">
+        <groups>
+            <run>
+                <include name="api"/>
+                <include name="smoke"/>
+            </run>
+        </groups>
+        <classes>
+            <class name="com.automation.api.tests.UserApiTest"/>
+        </classes>
+    </test>
+    
+</suite> 

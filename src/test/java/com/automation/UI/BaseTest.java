@@ -1,7 +1,7 @@
-package E2E;
+package com.automation.UI;
 
 import com.microsoft.playwright.*;
-import config.PlaywrightConfig;
+import com.automation.config.PlaywrightConfig;
 import org.testng.ITestResult;
 import org.testng.annotations.*;
 import org.slf4j.Logger;
@@ -34,16 +34,24 @@ public abstract class BaseTest {
         String testName = result.getMethod().getMethodName();
         
         try {
-            // Take screenshot on failure
-            if (!result.isSuccess() && page != null) {
-                String screenshotName = testName + "_failure";
-                config.takeScreenshot(page, screenshotName);
-                logger.info("Screenshot captured for failed test: {}", testName);
+            // Take screenshot on failure (only if page is still active)
+            if (!result.isSuccess() && page != null && !page.isClosed()) {
+                try {
+                    String screenshotName = testName + "_failure";
+                    config.takeScreenshot(page, screenshotName);
+                    logger.info("Screenshot captured for failed test: {}", testName);
+                } catch (Exception screenshotError) {
+                    logger.warn("Could not capture screenshot for failed test: {}", testName, screenshotError);
+                }
             }
             
             // Clean up resources
             if (config != null) {
-                config.cleanup();
+                try {
+                    config.cleanup();
+                } catch (Exception cleanupError) {
+                    logger.warn("Error during config cleanup for test: {}", testName, cleanupError);
+                }
             }
             
             logger.info("Test cleanup completed for: {}", testName);

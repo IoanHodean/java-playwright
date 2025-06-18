@@ -1,7 +1,7 @@
-package E2E;
+package com.automation.UI;
 
-import pages.LoginPage;
-import config.EnvironmentConfig;
+import com.automation.pages.LoginPage;
+import com.automation.config.EnvironmentConfig;
 import org.testng.annotations.*;
 import java.lang.reflect.Method;
 
@@ -33,7 +33,7 @@ public class LoginTest extends BaseTest {
         loginPage.login(username, password);
         
         // Verify successful login - SauceDemo redirects to inventory page
-        getPage().waitForURL(baseUrl + "inventory.html");
+        assert getPage().url().contains("inventory.html");
     }
     
     @Test

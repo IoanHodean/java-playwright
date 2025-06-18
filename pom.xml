@@ -175,8 +175,8 @@
     </dependencies>
     
     <build>
-        <sourceDirectory>src/main</sourceDirectory>
-        <testSourceDirectory>src/test</testSourceDirectory>
+        <sourceDirectory>src/main/java</sourceDirectory>
+        <testSourceDirectory>src/test/java</testSourceDirectory>
         <plugins>
             <!-- Maven Compiler Plugin -->
             <plugin>
@@ -184,8 +184,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
-                    <source>${maven.compiler.source}</source>
-                    <target>${maven.compiler.target}</target>
+                    <release>17</release>
                     <encoding>${project.build.sourceEncoding}</encoding>
                 </configuration>
             </plugin>
@@ -238,4 +237,4 @@
             </plugin>
         </plugins>
     </build>
-</project>
+</project> 

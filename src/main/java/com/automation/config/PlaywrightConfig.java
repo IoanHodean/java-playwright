@@ -1,4 +1,4 @@
-package config;
+package com.automation.config;
 
 import com.microsoft.playwright.*;
 import org.slf4j.Logger;

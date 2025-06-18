@@ -1,7 +1,7 @@
-package pages;
+package com.automation.pages;
 
 import com.microsoft.playwright.Page;
-import config.PlaywrightConfig;
+import com.automation.config.PlaywrightConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
