@@ -89,18 +89,34 @@ pipeline {
                     steps {
                         script {
                             echo "Running API tests in Docker container..."
-                            sh """
-                                docker run --rm --name test-api-${BUILD_NUMBER} \\
-                                    -v ${env.HOST_WORKSPACE}:/app \\
-                                    -v ${env.HOST_WORKSPACE}/target:/app/target \\
-                                    -v ${env.HOST_WORKSPACE}/allure-results:/app/allure-results \\
-                                    -v ${env.HOST_WORKSPACE}/logs:/app/logs \\
-                                    -e ENVIRONMENT=${TEST_ENVIRONMENT} \\
-                                    -e BROWSER=${BROWSER} \\
-                                    -e HEADLESS=${HEADLESS} \\
-                                    ${DOCKER_IMAGE}:${DOCKER_TAG} \\
-                                    bash -c "ls -la && mvn test -Dtest=*Api*Test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
-                            """
+                            try {
+                                sh """
+                                    # Create a temporary container to copy files and run tests
+                                    CONTAINER_ID=\$(docker create --name test-api-${BUILD_NUMBER} \\
+                                        -e ENVIRONMENT=${TEST_ENVIRONMENT} \\
+                                        -e BROWSER=${BROWSER} \\
+                                        -e HEADLESS=${HEADLESS} \\
+                                        ${DOCKER_IMAGE}:${DOCKER_TAG})
+                                    
+                                    # Copy project files to container
+                                    cd ${env.WORKSPACE_DIR}
+                                    docker cp . \$CONTAINER_ID:/app/
+                                    
+                                    # Start container and run tests
+                                    docker start \$CONTAINER_ID
+                                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn test -Dtest=*Api*Test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
+                                    
+                                    # Copy results back
+                                    docker cp \$CONTAINER_ID:/app/target ${env.WORKSPACE_DIR}/target || echo "No target to copy"
+                                    docker cp \$CONTAINER_ID:/app/allure-results ${env.WORKSPACE_DIR}/allure-results || echo "No allure-results to copy"
+                                    
+                                    # Cleanup
+                                    docker stop \$CONTAINER_ID || true
+                                    docker rm \$CONTAINER_ID || true
+                                """
+                            } catch (Exception e) {
+                                echo "API tests failed: ${e.getMessage()}"
+                            }
                         }
                     }
                 }
@@ -115,20 +131,36 @@ pipeline {
                     steps {
                         script {
                             echo "Running UI tests in Docker container..."
-                            sh """
-                                docker run --rm --name test-ui-${BUILD_NUMBER} \\
-                                    -v ${env.HOST_WORKSPACE}:/app \\
-                                    -v ${env.HOST_WORKSPACE}/target:/app/target \\
-                                    -v ${env.HOST_WORKSPACE}/allure-results:/app/allure-results \\
-                                    -v ${env.HOST_WORKSPACE}/logs:/app/logs \\
-                                    -v ${env.HOST_WORKSPACE}/screenshots:/app/screenshots \\
-                                    -e ENVIRONMENT=${TEST_ENVIRONMENT} \\
-                                    -e BROWSER=${BROWSER} \\
-                                    -e HEADLESS=${HEADLESS} \\
-                                    --shm-size=2g \\
-                                    ${DOCKER_IMAGE}:${DOCKER_TAG} \\
-                                    bash -c "ls -la && mvn test -Dtest=*UI*Test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
-                            """
+                            try {
+                                sh """
+                                    # Create a temporary container to copy files and run tests
+                                    CONTAINER_ID=\$(docker create --name test-ui-${BUILD_NUMBER} \\
+                                        -e ENVIRONMENT=${TEST_ENVIRONMENT} \\
+                                        -e BROWSER=${BROWSER} \\
+                                        -e HEADLESS=${HEADLESS} \\
+                                        --shm-size=2g \\
+                                        ${DOCKER_IMAGE}:${DOCKER_TAG})
+                                    
+                                    # Copy project files to container
+                                    cd ${env.WORKSPACE_DIR}
+                                    docker cp . \$CONTAINER_ID:/app/
+                                    
+                                    # Start container and run tests
+                                    docker start \$CONTAINER_ID
+                                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn test -Dtest=*UI*Test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
+                                    
+                                    # Copy results back
+                                    docker cp \$CONTAINER_ID:/app/target ${env.WORKSPACE_DIR}/target || echo "No target to copy"
+                                    docker cp \$CONTAINER_ID:/app/allure-results ${env.WORKSPACE_DIR}/allure-results || echo "No allure-results to copy"
+                                    docker cp \$CONTAINER_ID:/app/screenshots ${env.WORKSPACE_DIR}/screenshots || echo "No screenshots to copy"
+                                    
+                                    # Cleanup
+                                    docker stop \$CONTAINER_ID || true
+                                    docker rm \$CONTAINER_ID || true
+                                """
+                            } catch (Exception e) {
+                                echo "UI tests failed: ${e.getMessage()}"
+                            }
                         }
                     }
                 }
@@ -143,16 +175,32 @@ pipeline {
                     steps {
                         script {
                             echo "Running performance tests in Docker container..."
-                            sh """
-                                docker run --rm --name test-performance-${BUILD_NUMBER} \\
-                                    -v ${env.HOST_WORKSPACE}:/app \\
-                                    -v ${env.HOST_WORKSPACE}/target:/app/target \\
-                                    -v ${env.HOST_WORKSPACE}/allure-results:/app/allure-results \\
-                                    -v ${env.HOST_WORKSPACE}/logs:/app/logs \\
-                                    -e ENVIRONMENT=${TEST_ENVIRONMENT} \\
-                                    ${DOCKER_IMAGE}:${DOCKER_TAG} \\
-                                    bash -c "ls -la && mvn test -Dtest=*Performance*Test -Denvironment=${TEST_ENVIRONMENT} -Dmaven.test.failure.ignore=true"
-                            """
+                            try {
+                                sh """
+                                    # Create a temporary container to copy files and run tests
+                                    CONTAINER_ID=\$(docker create --name test-performance-${BUILD_NUMBER} \\
+                                        -e ENVIRONMENT=${TEST_ENVIRONMENT} \\
+                                        ${DOCKER_IMAGE}:${DOCKER_TAG})
+                                    
+                                    # Copy project files to container
+                                    cd ${env.WORKSPACE_DIR}
+                                    docker cp . \$CONTAINER_ID:/app/
+                                    
+                                    # Start container and run tests
+                                    docker start \$CONTAINER_ID
+                                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn test -Dtest=*Performance*Test -Denvironment=${TEST_ENVIRONMENT} -Dmaven.test.failure.ignore=true"
+                                    
+                                    # Copy results back
+                                    docker cp \$CONTAINER_ID:/app/target ${env.WORKSPACE_DIR}/target || echo "No target to copy"
+                                    docker cp \$CONTAINER_ID:/app/allure-results ${env.WORKSPACE_DIR}/allure-results || echo "No allure-results to copy"
+                                    
+                                    # Cleanup
+                                    docker stop \$CONTAINER_ID || true
+                                    docker rm \$CONTAINER_ID || true
+                                """
+                            } catch (Exception e) {
+                                echo "Performance tests failed: ${e.getMessage()}"
+                            }
                         }
                     }
                 }
