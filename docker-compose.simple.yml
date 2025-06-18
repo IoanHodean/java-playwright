@@ -3,7 +3,9 @@ version: '3.8'
 services:
   # Simple Jenkins setup
   jenkins:
-    image: jenkins/jenkins:lts-jdk17
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins
     container_name: jenkins-simple
     ports:
       - "8080:8080"
