@@ -15,4 +15,10 @@ testng-results
 junit
 pipeline-utility-steps
 pipeline-build-step
-blueocean 
+blueocean
+htmlpublisher
+test-results-analyzer
+performance
+workflow-cps
+workflow-job
+workflow-durable-task-step 
