@@ -79,13 +79,26 @@ pipeline {
                     
                     // Process TestNG/Surefire results
                     try {
-                        publishTestResults(
-                            testResultsPattern: 'target/surefire-reports/*.xml',
-                            allowEmptyResults: true
-                        )
-                        echo "✅ TestNG results published"
+                        // Check if test results exist and publish them
+                        script {
+                            if (fileExists('target/surefire-reports')) {
+                                def testFiles = sh(
+                                    script: 'find target/surefire-reports -name "*.xml" | wc -l',
+                                    returnStdout: true
+                                ).trim()
+                                
+                                if (testFiles.toInteger() > 0) {
+                                    // Use the step function with TestNG publisher
+                                    step([
+                                        $class: 'TestNGResultsPublisher',
+                                        reportFilenamePattern: 'target/surefire-reports/testng-results.xml'
+                                    ])
+                                    echo "✅ TestNG results published"
+                                }
+                            }
+                        }
                     } catch (Exception e) {
-                        echo "⚠️ No TestNG results to publish: ${e.getMessage()}"
+                        echo "⚠️ Test results publishing failed: ${e.getMessage()}"
                     }
                     
                     // Generate and publish Allure report
@@ -180,27 +193,27 @@ def runTestSuite(testSuite) {
             # Start container and run tests
             docker start \$CONTAINER_ID
             
-            # Run appropriate test command based on suite
+            # Run appropriate test command based on suite (without clean to avoid file lock issues)
             case "${testSuite}" in
                 "smoke")
                     echo "🔥 Running Smoke Tests..."
-                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn clean test -Dtest=*Smoke*Test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
+                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn test -Dtest=*Smoke*Test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
                     ;;
                 "api")
                     echo "🌐 Running API Tests..."
-                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn clean test -Dtest=*Api*Test -Denvironment=${TEST_ENVIRONMENT} -Dmaven.test.failure.ignore=true"
+                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn test -Dtest=*Api*Test -Denvironment=${TEST_ENVIRONMENT} -Dmaven.test.failure.ignore=true"
                     ;;
                 "ui")
                     echo "🖥️ Running UI Tests..."
-                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn clean test -Dtest=*UI*Test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
+                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn test -Dtest=*UI*Test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
                     ;;
                 "performance")
                     echo "⚡ Running Performance Tests..."
-                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn clean test -Dtest=*Performance*Test -Denvironment=${TEST_ENVIRONMENT} -Dmaven.test.failure.ignore=true"
+                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn test -Dtest=*Performance*Test -Denvironment=${TEST_ENVIRONMENT} -Dmaven.test.failure.ignore=true"
                     ;;
                 "all")
                     echo "🎯 Running All Tests..."
-                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn clean test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
+                    docker exec \$CONTAINER_ID bash -c "cd /app && mvn test -Denvironment=${TEST_ENVIRONMENT} -Dbrowser=${BROWSER} -Dheadless=${HEADLESS} -Dmaven.test.failure.ignore=true"
                     ;;
                 *)
                     echo "❌ Unknown test suite: ${testSuite}"
